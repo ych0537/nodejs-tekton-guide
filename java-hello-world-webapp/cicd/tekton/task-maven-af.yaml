@@ -1,0 +1,61 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  annotations:
+    openshift.io/installed-from: tektonhub
+    tekton.dev/categories: Build Tools
+    tekton.dev/pipelines.minVersion: 0.12.1
+    tekton.dev/platforms: linux/amd64,linux/s390x,linux/ppc64le
+    tekton.dev/tags: build-tool
+  labels:
+    app.kubernetes.io/version: "0.2"
+  name: maven-af
+spec:
+  description: This Task can be used to run a Maven build.
+  params:
+  - default: gcr.io/cloud-builders/mvn:3.5.0-jdk-8
+    description: Maven base image
+    name: MAVEN_IMAGE
+    type: string
+  - default: clean package
+    description: maven goals to run
+    name: GOALS
+    type: string
+  - default: .
+    description: The context directory within the repository for sources on which
+      we want to execute maven goals.
+    name: CONTEXT_DIR
+    type: string
+  - default: openshift
+    description: The maven profile to use
+    name: MAVEN_PROFILE
+    type: string
+  steps:
+  - image: $(params.MAVEN_IMAGE)
+    name: mvn-goals
+    script: |
+      #!/usr/bin/env sh
+
+      USE_MAVEN_CACHE=""
+      if [ "$(workspaces.maven-repo.bound)" = "true" ]; then
+        USE_MAVEN_CACHE="-Dmaven.repo.local=$(workspaces.maven-repo.path)/m2/repository"
+        PATH=$(workspaces.maven-repo.path)/maven/bin:$PATH
+      fi
+
+      USE_MAVEN_SETTINGS=""
+      if [ "$(workspaces.maven-settings.bound)" = "true" ]; then
+        USE_MAVEN_SETTINGS="-s $(workspaces.maven-settings.path)/settings.xml"
+      fi
+
+      echo "mvn $USE_MAVEN_SETTINGS -P$(params.MAVEN_PROFILE) $USE_MAVEN_CACHE $(params.GOALS)"
+      mvn $USE_MAVEN_SETTINGS -P$(params.MAVEN_PROFILE) $USE_MAVEN_CACHE $(params.GOALS)
+    workingDir: $(workspaces.source.path)/$(params.CONTEXT_DIR)
+  workspaces:
+  - description: The workspace consisting of maven project.
+    name: source
+  - description: The workspace consisting of maven repo cache.
+    name: maven-repo
+    optional: true
+  - description: The workspace consisting of the custom maven settings provided by
+      the configmap maven-settings
+    name: maven-settings

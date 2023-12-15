@@ -1,0 +1,53 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  annotations:
+    tekton.dev/categories: Messaging
+    tekton.dev/pipelines.minVersion: 0.12.1
+    tekton.dev/platforms: linux/amd64,linux/s390x,linux/ppc64le
+    tekton.dev/tags: messaging
+  labels:
+    app.kubernetes.io/version: "0.1"
+  name: send-to-channel-rocket
+spec:
+  description: |-
+    These tasks post a simple message to a Rocket.Chat channel.
+    This task uses chat.postMessage Rocket.Chat REST api to send the message.
+  params:
+  - description: channel id or channel name
+    name: channel
+    type: string
+  - description: plain text message
+    name: message
+    type: string
+  - default: ":space_invader:"
+    description: icon emoji
+    name: emoji
+    type: string
+  steps:
+  - env:
+    - name: ROCKET_HOST
+      valueFrom:
+        secretKeyRef:
+          key: rockethost
+          name: secret-rocket
+    - name: USERID
+      valueFrom:
+        secretKeyRef:
+          key: userid
+          name: secret-rocket
+    - name: TOKEN
+      valueFrom:
+        secretKeyRef:
+          key: token
+          name: secret-rocket
+    image: docker.io/curlimages/curl:7.70.0@sha256:031df77a11e5edded840bc761a845eab6e3c2edee22669fb8ad6d59484b6a1c4
+    name: post
+    script: |
+      #!/bin/sh
+      printf "Host: %s\n" $ROCKET_HOST
+      printf "Userid: %s\n" $USERID
+      printf "Token: %s\n" $TOKEN
+      printf "Channel: %s\n" "$(params.channel)"
+      printf "Message: %s\n" "$(params.message)"
+      /usr/bin/curl -k -s -X POST -H "X-User-Id: $USERID" -H "X-Auth-Token: $TOKEN" -H "Content-type:application/json" $ROCKET_HOST/api/v1/chat.postMessage -d '{ "channel": "$(params.channel)", "emoji": "$(params.emoji)", "text": "$(params.message)" }'

@@ -1,0 +1,44 @@
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  generateName: nodejs-deploy-tekton-
+  labels:
+    app.kubernetes.io/instance: nodejs-tekton-app
+    app.kubernetes.io/name: nodejs-tekton-app
+    pipeline.openshift.io/runtime: nodejs
+    pipeline.openshift.io/runtime-version: 14-ubi8
+    pipeline.openshift.io/type: kubernetes
+    tekton.dev/pipeline: nodejs-deploy-tekton
+spec:
+  pipelineRef:
+    name: nodejs-deploy-tekton
+  params:
+    - name: APP_NAME
+      value: nodejs-tekton-app
+    - name: GIT_REPO
+      value: ssh://bitbucket.arbetsformedlingen.se:7999/~joske/nodejs-tekton-guide.git
+    - name: GIT_REVISION
+      value: master
+    - name: GIT_MERGE_BRANCH
+      value: acc
+    - name: GIT_MERGE_FLAG
+      value: "true"
+    - name: GIT_DEPLOY_FLAG
+      value: "true"
+    - name: GIT_ARGOCD_ACC_DEPLOY_FILE
+      value: argocd/acc/nodejs-tekton-app-deployment.yaml
+    - name: GIT_ARGOCD_PROD_DEPLOY_FILE
+      value: argocd/prod/nodejs-tekton-app-deployment.yaml
+    - name: IMAGE_NAME
+      value: image-registry.openshift-image-registry.svc:5000/user-joske/nodejs-tekton-app
+    - name: IMAGE_REGISTRY
+      value: nexus.arbetsformedlingen.se/app-af-nexus-example/nodejs-tekton-app
+    - name: PATH_CONTEXT
+      value: nodejs
+    - name: NODEJS_IMAGE
+      value: registry.access.redhat.com/ubi8/nodejs-14@sha256:b241d5bdc8015baaeed0bbf66d2f934e72fa0b52263d62ce6b259ef343a0e6a7
+  serviceAccountName: pipeline
+  workspaces:
+    - name: workspace-guide
+      persistentVolumeClaim:
+        claimName: pvc-nodejs-tekton-deploy

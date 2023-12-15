@@ -1,0 +1,43 @@
+apiVersion: triggers.tekton.dev/v1beta1
+kind: TriggerTemplate
+metadata:
+  name: trigger-template-nodejs-tekton-guide
+spec:
+  params:
+  - name: git-revision
+  - name: gitrepo-url
+  - name: git-repo-name
+  - name: pusher-name
+  resourcetemplates:
+  - apiVersion: tekton.dev/v1beta1
+    kind: PipelineRun
+    metadata:
+      generateName: nodejs-tekton-
+      labels:
+        app.kubernetes.io/instance: nodejs-tekton-app
+        app.kubernetes.io/name: nodejs-tekton-app
+        pipeline.openshift.io/runtime: nodejs
+        pipeline.openshift.io/runtime-version: 14-ubi8
+        pipeline.openshift.io/type: kubernetes
+        tekton.dev/pipeline: nodejs-tekton
+    spec:
+      params:
+      - name: APP_NAME
+        value: nodejs-tekton-app
+      - name: GIT_REPO
+        value: ssh://git@bitbucket.arbetsformedlingen.se:7999/~joske/nodejs-tekton-guide.git
+      - name: GIT_REVISION
+        value: master
+      - name: IMAGE_NAME
+        value: image-registry.openshift-image-registry.svc:5000/user-joske/nodejs-tekton-app
+      - name: PATH_CONTEXT
+        value: nodejs
+      - name: NODEJS_IMAGE
+        value: registry.access.redhat.com/ubi8/nodejs-14@sha256:b241d5bdc8015baaeed0bbf66d2f934e72fa0b52263d62ce6b259ef343a0e6a7
+      pipelineRef:
+        name: nodejs-build-tekton
+      status: null
+      workspaces:
+      - name: workspace-guide
+        persistentVolumeClaim:
+          claimName: pvc-nodejs-tekton-guide

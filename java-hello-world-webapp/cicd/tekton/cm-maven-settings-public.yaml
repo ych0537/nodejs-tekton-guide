@@ -1,0 +1,73 @@
+apiVersion: v1
+data:
+  settings.xml: |
+    <settings>
+      <activeProfiles>
+        <!--make the profile active all the time -->
+        <activeProfile>securecentral</activeProfile>
+      </activeProfiles>
+      <profiles>
+        <profile>
+          <id>securecentral</id>
+          <!--Override the repository (and pluginRepository) "central" from the
+             Maven Super POM -->
+          <repositories>
+            <repository>
+              <id>central</id>
+              <url>http://repo1.maven.org/maven2</url>
+              <releases>
+                <enabled>true</enabled>
+              </releases>
+            </repository>
+          </repositories>
+          <pluginRepositories>
+            <pluginRepository>
+              <id>central</id>
+              <url>http://repo1.maven.org/maven2</url>
+              <releases>
+                <enabled>true</enabled>
+              </releases>
+            </pluginRepository>
+          </pluginRepositories>
+        </profile>
+      </profiles>
+      <servers>
+        <!-- The servers added here are generated from environment variables. Don't change. -->
+        <!-- ### SERVER's USER INFO from ENV ### -->
+      </servers>
+      <mirrors>
+        <!-- The mirrors added here are generated from environment variables. Don't change. -->
+        <mirror>
+          <id>mirror.default</id>
+          <!--url>https://nexus.arbetsformedlingen.se/repository/maven-central/</url-->
+          <url>https://repo1.maven.org/maven2/</url>
+          <mirrorOf>central</mirrorOf>
+        </mirror>
+      </mirrors>
+      <proxies>
+        <!-- The proxies added here are generated from environment variables. Don't change. -->
+        <proxy>
+          <id>http</id>
+          <active>true</active>
+          <protocol>http</protocol>
+          <host>testproxy.admz.ams.se</host>
+          <port>8080</port>
+          <nonProxyHosts>ams.se,.ams.se,arbetsformedlingen.se,.arbetsformedlingen.se,cluster.local,.cluster.local,svc,.svc,localhost,10.0.0.0/8,127.0.0.1,164.135.0.0/16,172.30.0.0/25</nonProxyHosts>
+        </proxy>
+        <proxy>
+          <id>https</id>
+          <active>true</active>
+          <protocol>http</protocol>
+          <host>testproxy.admz.ams.se</host>
+          <port>8080</port>
+          <nonProxyHosts>ams.se,.ams.se,arbetsformedlingen.se,.arbetsformedlingen.se,cluster.local,.cluster.local,svc,.svc,localhost,10.0.0.0/8,127.0.0.1,164.135.0.0/16,172.30.0.0/25</nonProxyHosts>
+        </proxy>
+      </proxies>
+    </settings>
+kind: ConfigMap
+metadata:
+  annotations:
+    argocd.argoproj.io/tracking-id: team-cicd-examples-jboss-eap-helloworld-rs:/ConfigMap:team-cicd-examples/maven-settings
+  labels:
+    app.kubernetes.io/instance: team-cicd-examples-jboss-eap-helloworld-rs
+  name: maven-settings

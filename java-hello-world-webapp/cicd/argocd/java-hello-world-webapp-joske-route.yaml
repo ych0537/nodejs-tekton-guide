@@ -1,0 +1,21 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  annotations:
+    openshift.io/host.generated: "true"
+  labels:
+    app: java-hello-world-webapp
+    app.kubernetes.io/component: java-hello-world-webapp
+    app.kubernetes.io/instance: java-hello-world-webapp
+  name: java-hello-world-webapp
+  namespace: joske3
+spec:
+  host: java-hello-world-webapp-joske3.apps.tocp4.arbetsformedlingen.se
+  path: /java-hello-world
+  port:
+    targetPort: 8080-tcp
+  to:
+    kind: Service
+    name: java-hello-world-webapp
+    weight: 100
+  wildcardPolicy: None
