@@ -1,0 +1,22 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  labels:
+    app: nodejs-tekton-app
+    app.kubernetes.io/component: nodejs-tekton-app
+    app.kubernetes.io/instance: nodejs-tekton-app
+    app.kubernetes.io/name: nodejs-tekton-app
+    app.kubernetes.io/part-of: nodejs-tekton-guide
+    app.openshift.io/runtime: nodejs
+    app.openshift.io/runtime-version: 14-ubi8
+  name: nodejs-tekton-guide
+spec:
+  host: nodejs-tekton-guide-demo.apps.tocp4.arbetsformedlingen.se
+  path: /nodejs
+  port:
+    targetPort: 8080-tcp
+  to:
+    kind: Service
+    name: nodejs-tekton-app
+    weight: 100
+  wildcardPolicy: None

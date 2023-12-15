@@ -1,0 +1,147 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  labels:
+    app.kubernetes.io/instance: nodejs-tekton
+    app.kubernetes.io/name: nodejs-tekton
+    pipeline.openshift.io/runtime: nodejs
+    pipeline.openshift.io/runtime-version: 14-ubi8
+    pipeline.openshift.io/type: kubernetes
+  name: nodejs-deploy-tekton
+spec:
+  finally:
+  - name: failure-notify-tag-push
+    params:
+    - name: channel
+      value: team-cicd-example
+    - name: message
+      value: Failed - Tag and Push tekton pipeline (nodejs-deploy-tekton/user-joske).
+    - name: emoji
+      value: ':scream_cat:'
+    taskRef:
+      kind: Task
+      name: send-to-channel-rocket
+    when:
+    - input: $(tasks.build-tag-push-image.status)
+      operator: in
+      values:
+      - Failed
+  params:
+  - default: nodejs-tekton-app
+    name: APP_NAME
+    type: string
+  - default: https://github.com/ych0537/nodejs-tekton-guide.git
+    name: GIT_REPO
+    type: string
+  - default: master
+    name: GIT_REVISION
+    type: string
+  - default: acc
+    name: GIT_MERGE_BRANCH
+    type: string
+  - default: "true"
+    name: GIT_MERGE_FLAG
+    type: string
+  - default: "true"
+    name: GIT_DEPLOY_FLAG
+    type: string
+  - default: argocd/acc/nodejs-tekton-app-deployment.yaml
+    name: GIT_ARGOCD_ACC_DEPLOY_FILE
+    type: string
+  - default: argocd/prod/nodejs-tekton-app-deployment.yaml
+    name: GIT_ARGOCD_PROD_DEPLOY_FILE
+    type: string
+  - default: image-registry.openshift-image-registry.svc:5000/user-joske/nodejs-tekton-app
+    name: IMAGE_NAME
+    type: string
+  - default: nexus.arbetsformedlingen.se/app-af-nexus-example/nodejs-tekton-app
+    name: IMAGE_REGISTRY
+    type: string
+  - default: nodejs
+    name: PATH_CONTEXT
+    type: string
+  - default: registry.access.redhat.com/ubi8/nodejs-14@sha256:b241d5bdc8015baaeed0bbf66d2f934e72fa0b52263d62ce6b259ef343a0e6a7
+    name: NODEJS_IMAGE
+    type: string
+  tasks:
+  - name: fetch-repository
+    params:
+    - name: url
+      value: $(params.GIT_REPO)
+    - name: revision
+      value: $(params.GIT_REVISION)
+    - name: subdirectory
+      value: ""
+    - name: deleteExisting
+      value: "true"
+    taskRef:
+      kind: ClusterTask
+      name: git-clone
+    workspaces:
+    - name: output
+      workspace: workspace-guide
+  - name: build-tag-push-image
+    params:
+    - name: TLSVERIFY
+      value: "false"
+    - name: IMAGE_NAME
+      value: $(params.IMAGE_NAME)
+    - name: IMAGE_REGISTRY
+      value: $(params.IMAGE_REGISTRY)
+    - name: BUILDER_IMAGE
+      value: registry.redhat.io/rhel8/buildah@sha256:e19cf23d5f1e0608f5a897f0a50448beb9f8387031cca49c7487ec71bd91c4d3
+    - name: gitInitImage
+      value: registry.redhat.io/openshift-pipelines/pipelines-git-init-rhel8@sha256:af7dd5b3b1598a980f17d5f5d3d8a4b11ab4f5184677f7f17ad302baa36bd3c1
+    runAfter:
+    - fetch-repository
+    taskRef:
+      kind: Task
+      name: buildah-tag-push-version-af
+    workspaces:
+    - name: source
+      workspace: workspace-guide
+  - name: git-push-new-release
+    params:
+    - name: BASE_IMAGE
+      value: docker.io/alpine/git:v2.26.2@sha256:23618034b0be9205d9cc0846eb711b12ba4c9b468efdd8a59aac1d7b1a23363f
+    - name: GIT_SCRIPT
+      value: |-
+        tag=$(cat $(workspaces.source.path)/release/latest.tag) base_commit=$(git log -n 1 --pretty=format:'%H' | tr -d '\n') base_short=$(git log -n 1 --pretty=format:'%h' | tr -d '\n')
+        echo "Commit before this one: $base_commit"
+        echo -n $base_commit > $(workspaces.source.path)/release/base.commit
+        echo -n $base_short > $(workspaces.source.path)/release/base.commit_short
+        #ls -la $(workspaces.source.path)
+        git init
+        git fetch --unshallow origin
+        git remote add $(params.APP_NAME)-$tag $(params.GIT_REPO)
+        git checkout -b $(params.APP_NAME)-$tag
+        if [ $(params.GIT_DEPLOY_FLAG) == "true" ]; then
+          echo "New image in deploy file: $(params.IMAGE_REGISTRY):$tag"
+
+          sed -i "s/\/$(params.APP_NAME):.*/\/$(params.APP_NAME):$tag/" $(workspaces.source.path)/$(params.GIT_ARGOCD_ACC_DEPLOY_FILE)
+          sed -i "s/\/$(params.APP_NAME):.*/\/$(params.APP_NAME):$tag/" $(workspaces.source.path)/$(params.GIT_ARGOCD_PROD_DEPLOY_FILE)
+        fi
+        git add . && git commit -m "New release build image: $(params.APP_NAME):$tag"
+        git push --set-upstream origin $(params.APP_NAME)-$tag
+
+        if [ $(params.GIT_MERGE_FLAG) == "true" ]; then
+          git push $(params.APP_NAME)-$tag HEAD:$(params.GIT_MERGE_BRANCH) --force
+        fi
+    - name: USER_HOME
+      value: /root
+    - name: VERBOSE
+      value: "true"
+    - name: GIT_USER_NAME
+      value: OCP4
+    - name: GIT_USER_EMAIL
+      value: ocp4@cicd.dev
+    runAfter:
+    - build-tag-push-image
+    taskRef:
+      kind: ClusterTask
+      name: git-cli
+    workspaces:
+    - name: source
+      workspace: workspace-guide
+  workspaces:
+  - name: workspace-guide
